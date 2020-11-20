@@ -1,5 +1,4 @@
-import requests
-
+import aiohttp
 
 class N2YOSatelliteCategory:
     All = 0
@@ -56,17 +55,39 @@ class N2YOSatelliteCategory:
 
 
 class N2YO:
-    API_URL = 'https://www.n2yo.com/rest/v1/satellite/'
+    API_URL = 'https://api.n2yo.com/rest/v1/satellite/'
 
-    def __init__(self, apikey, lat=None, lon=None, alt=None):
+    def __init__(self, 
+        apikey:str, 
+        latitude:float=None, 
+        longitude:float=None, 
+        altitude:float=None,
+        session:aiohttp.ClientSession=None,
+    ):
         self.apikey = apikey
-        self.lat = lat
-        self.lon = lon
-        self.alt = alt
-        self.transactionscount = 0
+        self.latitude = latitude
+        self.longitude = longitude
+        self.altitude = altitude
         self.params = {'apiKey': self.apikey}
+        self.session = session if session else aiohttp.ClientSession()
 
-    def get_TLE(self, id):
+    async def get_api(self, endpoint:str, params:dict={}):
+        """Call the API and return the results as JSON."""
+
+        params.update(self.params)
+
+        try:
+            async with self.session.get(
+                f"{N2YO.API_URL}{endpoint}",
+                params=params,
+            ) as resp:
+                response = await resp.json()
+        except aiohttp.ClientConnectionError as error:
+            raise ConnectionError(error)
+
+        return response
+
+    async def get_TLE(self, id:int):
         '''
         Retrieve the Two Line Elements (TLE) for a satellite identified by NORAD id.
 
@@ -83,14 +104,18 @@ class N2YO:
         transactionscount	integer	Count of transactions performed with this API key in last 60 minutes
         tle	                string	TLE on single line string. Split the line in two by \r\n to get original two lines
         '''
-        r = requests.get(
-            f'{N2YO.API_URL}tle/{id}',
-            params=self.params
-        ).json()
-        self.transactionscount = r['info']['transactionscount']
-        return r['info'], r['tle']
+        
+        response = await self.get_api(f"tle/{id}")
 
-    def get_positions(self, id, seconds, lat=None, lon=None, alt=None):
+        return response
+
+    async def get_positions(self, 
+        id:int, 
+        seconds:int, 
+        latitude:float=None, 
+        longitude:float=None, 
+        altitude:float=None,
+    ):
         '''
         Retrieve the future positions of any satellite as footprints (latitude, longitude) to display orbits on maps. Also return the satellite's azimuth and elevation with respect to the observer location. Each element in the response array is one second of calculation. First element is calculated for current UTC time.
 
@@ -117,43 +142,23 @@ class N2YO:
         dec	                float	Satellite declination (degrees)
         timestamp	        integer	Unix time for this position (seconds). You should convert this UTC value to observer's time zone
         '''
-        if lat is None:
-            lat = self.lat
-        if lon is None:
-            lon = self.lon
-        if alt is None:
-            alt = self.alt
+        
+        latitude = latitude if latitude else self.latitude
+        longitude = longitude if longitude else self.longitude
+        altitude = altitude if altitude else self.altitude
 
-        r = requests.get(
-            f'{N2YO.API_URL}positions/{id}/{lat}/{lon}/{alt}/{seconds}',
-        ).json()
-        self.transactionscount = r['info']['transactionscount']
+        response = await self.get_api(f"positions/{id}/{latitude}/{longitude}/{altitude}/{seconds}")
 
-        positions = []
-        azels = []
-        radecs = []
-        timestamps = []
-        for ii, pos in enumerate(r['positions']):
-            positions.append([
-                pos['satlatitude'],
-                pos['satlongitude'],
-                pos['satlaltitude']
-            ])
-            azels.append([pos['azimuth'], pos['elevation']])
-            radecs.append([pos['ra'], pos['dec']])
-            timestamps.append(pos['timestamp'])
+        return response
 
-        ans = {
-            'timestamps': timestamps,
-            'positions': positions,
-            'azels': azels,
-            'radecs': radecs
-        }
-
-        return r['info'], ans
-
-    def get_visualpasses(
-        self, id, days, min_visibility, lat=None, lon=None, alt=None
+    async def get_visualpasses(
+        self, 
+        id:int, 
+        days:int, 
+        min_visibility:int, 
+        latitude:float=None, 
+        longitude:float=None, 
+        altitude:float=None,
     ):
         '''
         Get predicted visual passes for any satellite relative to a location on Earth. A 'visual pass' is a pass that should be optically visible on the entire (or partial) duration of crossing the sky. For that to happen, the satellite must be above the horizon, illumintaed by Sun (not in Earth shadow), and the sky dark enough to allow visual satellite observation.
@@ -190,28 +195,29 @@ class N2YO:
         mag	                float	Max visual magnitude of the pass, same scale as star brightness. If magnitude cannot be determined, the value is 100000
         duration	        integer	Total visible duration of this pass (in seconds)
         '''
-        if lat is None:
-            lat = self.lat
-        if lon is None:
-            lon = self.lon
-        if alt is None:
-            alt = self.alt
+        latitude = latitude if latitude else self.latitude
+        longitude = longitude if longitude else self.longitude
+        altitude = altitude if altitude else self.altitude
 
-        r = requests.get(
-            f'{N2YO.API_URL}visualpasses/{id}/{lat}/{lon}/{alt}/{days}/{min_visibility}',
-            params=self.params
-        ).json()
-        self.transactionscount = r['info']['transactionscount']
-
-        if 'passes' in r.keys():
-            passes = r['passes']
+        response = await self.get_api(
+            f"visualpasses/{id}/{latitude}/{longitude}/{altitude}/{days}/{min_visibility}"
+        )
+        
+        if 'passes' in response.keys():
+            passes = response['passes']
         else:
             passes = []
 
-        return r['info'], passes
+        return passes
 
-    def get_radiopasses(
-        self, id, days, min_elevation, lat=None, lon=None, alt=None
+    async def get_radiopasses(
+        self, 
+        id:int, 
+        days:int, 
+        min_elevation:int, 
+        latitude:float=None, 
+        longitude:float=None, 
+        altitude:float=None,
     ):
         '''
         The 'radio passes' are similar to 'visual passes', the only difference being the requirement for the objects to be optically visible for observers. This function is useful mainly for predicting satellite passes to be used for radio communications. The quality of the pass depends essentially on the highest elevation value during the pass, which is one of the input parameters.
@@ -244,32 +250,28 @@ class N2YO:
         endAzCompass	    string	Satellite azimuth for the end of this pass (relative to the observer). Possible values: N, NE, E, SE, S, SW, W, NW
         endUTC	            integer	Unix time for the end of this pass. You should convert this UTC value to observer's time zone
         '''
-        if lat is None:
-            lat = self.lat
-        if lon is None:
-            lon = self.lon
-        if alt is None:
-            alt = self.alt
+        latitude = latitude if latitude else self.latitude
+        longitude = longitude if longitude else self.longitude
+        altitude = altitude if altitude else self.altitude
 
-        r = requests.get(
-            f'{N2YO.API_URL}radiopasses/{id}/{lat}/{lon}/{alt}/{days}/{min_elevation}',
-            params=self.params
-        ).json()
-        self.transactionscount = r['info']['transactionscount']
-
-        if 'passes' in r.keys():
-            passes = r['passes']
+        response = await self.get_api(
+            f"radiopasses/{id}/{latitude}/{longitude}/{altitude}/{days}/{min_elevation}"
+        )
+        
+        if 'passes' in response.keys():
+            passes = response['passes']
         else:
             passes = []
 
-        return r['info'], passes
+        return passes
 
-    def get_above(
+    async def get_above(
         self,
-        search_radius=90,
-        category_id=N2YOSatelliteCategory.All,
-        lat=None, lon=None,
-        alt=None
+        search_radius:int=90,
+        category_id:int=N2YOSatelliteCategory.All,
+        latitude:float=None, 
+        longitude:float=None,
+        altitude:float=None,
     ):
         '''
         The 'above' function will return all objects within a given search radius above observer's location. The radius (θ), expressed in degrees, is measured relative to the point in the sky directly above an observer (azimuth).
@@ -299,21 +301,17 @@ class N2YO:
         satlat	            float	Satellite altitude (km)
 
         '''
-        if lat is None:
-            lat = self.lat
-        if lon is None:
-            lon = self.lon
-        if alt is None:
-            alt = self.alt
+        latitude = latitude if latitude else self.latitude
+        longitude = longitude if longitude else self.longitude
+        altitude = altitude if altitude else self.altitude
 
-        r = requests.get(
-            f'{N2YO.API_URL}above/{lat}/{lon}/{alt}/{search_radius}/{category_id}',
-            params=self.params
-        ).json()
-        self.transactionscount = r['info']['transactionscount']
-        if 'above' in r.keys():
-            above = r['above']
+        response = await self.get_api(
+            f"above/{latitude}/{longitude}/{altitude}/{search_radius}/{category_id}"
+        )
+        
+        if 'above' in response.keys():
+            above = response['above']
         else:
             above = []
 
-        return r['info'], above
+        return above

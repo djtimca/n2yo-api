@@ -4,16 +4,16 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="n2yo",
-    version="0.0.5",
-    author="David Schuster",
-    author_email="David.Schuster@gmail.com",
-    description="Python wrapper for the N2YO API",
+    name="n2yoasync",
+    version="0.0.1",
+    author="Tim Empringham",
+    author_email="tim.empringham@live.ca",
+    description="Async Python wrapper for the N2YO API",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/circuitqed/n2yo",
+    url="https://github.com/djtimca/n2yo-api",
     packages=setuptools.find_packages(),
-    install_requires=['requests'],
+    keywords=['N2YO','Satellite'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
