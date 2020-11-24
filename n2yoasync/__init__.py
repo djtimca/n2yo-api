@@ -86,7 +86,7 @@ class N2YO:
             raise ConnectionError(error)
 
         if response.get("error"):
-            raise AuthenticationError(error)
+            raise AuthenticationError()
 
         return response
 
