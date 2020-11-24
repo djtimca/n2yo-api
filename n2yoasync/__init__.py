@@ -85,6 +85,9 @@ class N2YO:
         except aiohttp.ClientConnectionError as error:
             raise ConnectionError(error)
 
+        if response.get("error"):
+            raise AuthenticationError(error)
+
         return response
 
     async def get_TLE(self, id:int):
@@ -315,3 +318,6 @@ class N2YO:
             above = []
 
         return above
+
+class AuthenticationError(Exception):
+    pass
