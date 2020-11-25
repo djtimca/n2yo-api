@@ -1,6 +1,7 @@
 import aiohttp
+from enum import Enum
 
-class N2YOSatelliteCategory:
+class N2YOSatelliteCategory(Enum):
     All = 0
     Amateur = 18
     Beidou = 35
