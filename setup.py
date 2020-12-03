@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="n2yoasync",
-    version="0.0.5",
+    version="0.0.6",
     author="Tim Empringham",
     author_email="tim.empringham@live.ca",
     description="Async Python wrapper for the N2YO API",

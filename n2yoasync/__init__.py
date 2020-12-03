@@ -43,6 +43,7 @@ class N2YOSatelliteCategory(Enum):
     SatelliteAugmentationSystem = 23
     SearchRescue = 7
     SpaceEarthScience = 26
+    Starlink = 52
     Strela = 39
     TrackingDataRelaySystemSatellite = 9
     Tselina = 44
@@ -53,7 +54,6 @@ class N2YOSatelliteCategory(Enum):
     WestfordNeedles = 37
     XMSirius = 33
     Yaogan = 36
-    Starlink = 52
 
 
 class N2YO:
