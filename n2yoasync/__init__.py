@@ -53,6 +53,7 @@ class N2YOSatelliteCategory(Enum):
     WestfordNeedles = 37
     XMSirius = 33
     Yaogan = 36
+    Starlink = 52
 
 
 class N2YO:
